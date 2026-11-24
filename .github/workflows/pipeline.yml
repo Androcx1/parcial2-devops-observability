@@ -1,0 +1,108 @@
+name: CI - Tests y Docker
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+
+jobs:
+
+  # =====================================================
+  # PRUEBAS BACKEND - JEST / SUPERTEST
+  # =====================================================
+
+  backend-tests:
+
+    name: Backend - Jest
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Descargar repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas backend
+        run: npm test
+
+
+  # =====================================================
+  # PRUEBAS FRONTEND - PLAYWRIGHT
+  # =====================================================
+
+  frontend-tests:
+
+    name: Frontend - Playwright
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Descargar repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar pruebas Playwright
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Guardar reporte HTML de Playwright
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+
+  # =====================================================
+  # VALIDAR CONSTRUCCIÓN DOCKER
+  # SOLO CORRE SI JEST Y PLAYWRIGHT PASARON
+  # =====================================================
+
+  docker-build:
+
+    name: Docker - Build
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - backend-tests
+      - frontend-tests
+
+    steps:
+
+      - name: Descargar repositorio
+        uses: actions/checkout@v7
+
+      - name: Construir imagen Docker
+        run: |
+          docker build \
+            -t devops-tasks:${{ github.sha }} \
+            .
