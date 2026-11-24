@@ -1,0 +1,12 @@
+node_modules/
+*.db
+.env
+auth.json
+
+playwright-report/
+test-results/
+coverage/
+evidencias/
+
+npm-debug.log*
+.DS_Store

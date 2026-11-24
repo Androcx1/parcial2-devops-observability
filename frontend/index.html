@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>DevOps Tasks</title>
+
+  <link
+    rel="stylesheet"
+    href="/css/styles.css"
+  >
+</head>
+
+<body>
+
+  <main class="container">
+
+    <!-- =====================================================
+         ENCABEZADO
+    ====================================================== -->
+
+    <header class="header">
+
+      <h1>DevOps Tasks</h1>
+
+      <p>
+        Sistema de tareas para práctica CI/CD y Observabilidad
+      </p>
+
+
+      <!-- ESTADO DE LA API -->
+
+      <div
+        id="api-status"
+        class="status"
+      >
+        Verificando API...
+      </div>
+
+
+      <!-- SESIÓN -->
+
+      <div class="session-bar">
+
+        <span id="current-user">
+          Usuario: cargando...
+        </span>
+
+        <button
+          id="logout-button"
+          type="button"
+          class="delete"
+        >
+          Cerrar sesión
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- =====================================================
+         NUEVA TAREA
+    ====================================================== -->
+
+    <section class="card">
+
+      <h2>Nueva tarea</h2>
+
+      <form id="task-form">
+
+        <input
+          id="task-input"
+          type="text"
+          placeholder="Escribe una tarea"
+          maxlength="100"
+          autocomplete="off"
+        >
+
+        <button
+          id="add-button"
+          type="submit"
+        >
+          Agregar
+        </button>
+
+      </form>
+
+
+      <p
+        id="message"
+        class="message"
+      ></p>
+
+    </section>
+
+
+    <!-- =====================================================
+         LISTA DE TAREAS
+    ====================================================== -->
+
+    <section class="card">
+
+      <div class="tasks-header">
+
+        <h2>Tareas</h2>
+
+        <button
+          id="reload-button"
+          type="button"
+          class="secondary"
+        >
+          Actualizar
+        </button>
+
+      </div>
+
+
+      <div id="task-list">
+        Cargando tareas...
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- =====================================================
+       JAVASCRIPT
+  ====================================================== -->
+
+  <script src="/js/app.js"></script>
+
+</body>
+
+</html>

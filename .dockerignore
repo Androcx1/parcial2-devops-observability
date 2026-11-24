@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.git
+.github
+playwright-report
+test-results
+coverage
+evidencias
+*.db
+.env
+auth.json

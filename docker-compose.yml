@@ -1,0 +1,24 @@
+services:
+
+  devops-tasks:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: devops-tasks-app
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+
+    volumes:
+      - tasks-data:/app/backend/db
+
+    restart: unless-stopped
+
+
+volumes:
+  tasks-data:
