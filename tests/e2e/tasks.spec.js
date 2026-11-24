@@ -726,73 +726,110 @@ test.describe(
     // ========================================================
 
     test(
-      'Debe permitir crear múltiples tareas',
+  'Debe permitir crear múltiples tareas',
 
-      async ({ page }) => {
+  async ({ page }) => {
 
-        const input =
-          page.locator(
-            '#task-input'
-          );
-
-
-        await input.fill(
-          'Configurar Docker'
-        );
+    const input =
+      page.locator(
+        '#task-input'
+      );
 
 
-        await page
-          .getByRole(
-            'button',
-            {
-              name: 'Agregar',
-            }
-          )
-          .click();
+    // ==================================================
+    // PRIMERA TAREA
+    // ==================================================
 
-
-        await input.fill(
-          'Configurar GitHub Actions'
-        );
-
-
-        await page
-          .getByRole(
-            'button',
-            {
-              name: 'Agregar',
-            }
-          )
-          .click();
-
-
-        await expect(
-          page.locator(
-            '#task-list'
-          )
-        ).toContainText(
-          'Configurar Docker'
-        );
-
-
-        await expect(
-          page.locator(
-            '#task-list'
-          )
-        ).toContainText(
-          'Configurar GitHub Actions'
-        );
-
-
-        await expect(
-          page.locator(
-            '.task'
-          )
-        ).toHaveCount(2);
-
-      }
+    await input.fill(
+      'Configurar Docker'
     );
 
+
+    await page
+      .getByRole(
+        'button',
+        {
+          name: 'Agregar',
+        }
+      )
+      .click();
+
+
+    // Esperar a que realmente termine de guardarse
+    await expect(
+      page.locator(
+        '#task-list'
+      )
+    ).toContainText(
+      'Configurar Docker'
+    );
+
+
+    // Esperar también que el input vuelva a quedar vacío
+    await expect(
+      input
+    ).toHaveValue('');
+
+
+    // ==================================================
+    // SEGUNDA TAREA
+    // ==================================================
+
+    await input.fill(
+      'Configurar GitHub Actions'
+    );
+
+
+    await page
+      .getByRole(
+        'button',
+        {
+          name: 'Agregar',
+        }
+      )
+      .click();
+
+
+    // Esperar segunda respuesta
+    await expect(
+      page.locator(
+        '#task-list'
+      )
+    ).toContainText(
+      'Configurar GitHub Actions'
+    );
+
+
+    // ==================================================
+    // VALIDACIONES FINALES
+    // ==================================================
+
+    await expect(
+      page.locator(
+        '#task-list'
+      )
+    ).toContainText(
+      'Configurar Docker'
+    );
+
+
+    await expect(
+      page.locator(
+        '#task-list'
+      )
+    ).toContainText(
+      'Configurar GitHub Actions'
+    );
+
+
+    await expect(
+      page.locator(
+        '.task'
+      )
+    ).toHaveCount(2);
+
+  }
+);
 
     // ========================================================
     // 15
