@@ -10,6 +10,10 @@ const {
   requireAuth,
 } = require('./backend/routes/auth');
 
+const {
+  enviarLogOpenObserve,
+} = require('./backend/utils/openobserve');
+
 
 // Inicializar base de datos
 require('./backend/db/database');
@@ -67,30 +71,82 @@ app.use(
 
 
 // ======================================================
-// LOGS HTTP
+// LOGS HTTP + OPENOBSERVE
 // ======================================================
 
 app.use((req, res, next) => {
-  const inicio = Date.now();
 
-  res.on('finish', () => {
-    const duracion =
-      Date.now() - inicio;
+  const inicio =
+    Date.now();
 
-    const log = {
-      evento: 'HTTP_REQUEST',
-      metodo: req.method,
-      endpoint: req.originalUrl,
-      statusCode: res.statusCode,
-      tiempoRespuestaMs: duracion,
-      timestamp:
-        new Date().toISOString(),
-    };
 
-    console.log(
-      JSON.stringify(log)
-    );
-  });
+  res.on(
+    'finish',
+    () => {
+
+      const duracion =
+        Date.now() - inicio;
+
+
+      const log = {
+        evento:
+          'HTTP_REQUEST',
+
+        metodo:
+          req.method,
+
+        endpoint:
+          req.originalUrl,
+
+        statusCode:
+          res.statusCode,
+
+        tiempoRespuestaMs:
+          duracion,
+
+        timestamp:
+          new Date()
+            .toISOString(),
+
+        ip:
+          req.ip,
+
+        usuario:
+          req.session?.user
+            ?.username ||
+          'anonimo',
+      };
+
+
+      // ==============================================
+      // LOG LOCAL
+      // ==============================================
+
+      console.log(
+        JSON.stringify(log)
+      );
+
+
+      // ==============================================
+      // LOG HACIA OPENOBSERVE
+      // ==============================================
+
+      enviarLogOpenObserve(
+        log
+      ).catch(
+        (error) => {
+
+          console.error(
+            'OPENOBSERVE_SEND_ERROR',
+            error.message
+          );
+
+        }
+      );
+
+    }
+  );
+
 
   next();
 });
@@ -113,13 +169,18 @@ app.use(
 app.get(
   '/api/health',
   (req, res) => {
+
     res.status(200).json({
       status: 'OK',
+
       servicio:
         'DevOps Tasks API',
+
       timestamp:
-        new Date().toISOString(),
+        new Date()
+          .toISOString(),
     });
+
   }
 );
 
@@ -138,9 +199,14 @@ app.use(
 // ======================================================
 // ARCHIVOS ESTÁTICOS
 // ======================================================
+//
+// Solo publicamos CSS y JS.
+// index.html permanece protegido.
+// ======================================================
 
 app.use(
   '/css',
+
   express.static(
     path.join(
       __dirname,
@@ -150,8 +216,10 @@ app.use(
   )
 );
 
+
 app.use(
   '/js',
+
   express.static(
     path.join(
       __dirname,
@@ -168,10 +236,21 @@ app.use(
 
 app.get(
   '/login',
+
   (req, res) => {
-    if (req.session.user) {
-      return res.redirect('/');
+
+    // Si ya inició sesión,
+    // regresar al sistema.
+    if (
+      req.session.user
+    ) {
+
+      return res.redirect(
+        '/'
+      );
+
     }
+
 
     res.sendFile(
       path.join(
@@ -180,6 +259,7 @@ app.get(
         'login.html'
       )
     );
+
   }
 );
 
@@ -190,12 +270,20 @@ app.get(
 
 app.get(
   '/',
+
   (req, res) => {
-    if (!req.session.user) {
+
+    // Sin sesión no entra al CRUD.
+    if (
+      !req.session.user
+    ) {
+
       return res.redirect(
         '/login'
       );
+
     }
+
 
     res.sendFile(
       path.join(
@@ -204,6 +292,7 @@ app.get(
         'index.html'
       )
     );
+
   }
 );
 
@@ -214,11 +303,14 @@ app.get(
 
 app.use(
   '/api',
+
   (req, res) => {
+
     res.status(404).json({
       error:
         'Endpoint no encontrado',
     });
+
   }
 );
 
@@ -229,13 +321,22 @@ app.use(
 
 app.use(
   (req, res) => {
-    if (!req.session.user) {
+
+    if (
+      !req.session.user
+    ) {
+
       return res.redirect(
         '/login'
       );
+
     }
 
-    res.redirect('/');
+
+    res.redirect(
+      '/'
+    );
+
   }
 );
 
@@ -244,37 +345,60 @@ app.use(
 // INICIAR SERVIDOR
 // ======================================================
 
-if (require.main === module) {
+if (
+  require.main === module
+) {
+
   app.listen(
     PORT,
     '0.0.0.0',
+
     () => {
+
+      const logInicio = {
+        evento:
+          'SERVER_STARTED',
+
+        puerto:
+          PORT,
+
+        estado:
+          'OK',
+
+        timestamp:
+          new Date()
+            .toISOString(),
+      };
+
+
+      // Log local
       console.log(
-        JSON.stringify({
-          evento:
-            'SERVER_STARTED',
-
-          puerto:
-            PORT,
-
-          estado:
-            'OK',
-
-          timestamp:
-            new Date().toISOString(),
-        })
+        JSON.stringify(
+          logInicio
+        )
       );
+
+
+      // Intentar enviar también a OpenObserve
+      enviarLogOpenObserve(
+        logInicio
+      ).catch(
+        () => {}
+      );
+
 
       console.log(
         `Aplicación disponible en http://localhost:${PORT}`
       );
+
     }
   );
+
 }
 
 
 // ======================================================
-// EXPORTAR PARA JEST
+// EXPORTAR PARA JEST / SUPERTEST
 // ======================================================
 
 module.exports = app;
