@@ -11,12 +11,10 @@ const OPENOBSERVE_STREAM =
   'devops_tasks';
 
 const OPENOBSERVE_USER =
-  process.env.OPENOBSERVE_USER ||
-  'admin@devops.local';
+  process.env.OPENOBSERVE_USER;
 
 const OPENOBSERVE_PASSWORD =
-  process.env.OPENOBSERVE_PASSWORD ||
-  'OpenObserve2026!';
+  process.env.OPENOBSERVE_PASSWORD;
 
 
 async function enviarLogOpenObserve(log) {
@@ -32,7 +30,28 @@ async function enviarLogOpenObserve(log) {
   }
 
 
+  // ==================================================
+  // VALIDAR CONFIGURACIÓN
+  // ==================================================
+
+  if (
+    !OPENOBSERVE_USER ||
+    !OPENOBSERVE_PASSWORD
+  ) {
+
+    console.error(
+      'OPENOBSERVE_CONFIG_ERROR: faltan credenciales'
+    );
+
+    return;
+  }
+
+
   try {
+
+    // ==================================================
+    // CREDENCIALES BASIC AUTH
+    // ==================================================
 
     const credentials =
       Buffer.from(
@@ -40,7 +59,10 @@ async function enviarLogOpenObserve(log) {
       ).toString('base64');
 
 
-    // Evita conexiones colgadas
+    // ==================================================
+    // TIMEOUT PARA EVITAR CONEXIONES COLGADAS
+    // ==================================================
+
     const controller =
       new AbortController();
 
@@ -52,6 +74,10 @@ async function enviarLogOpenObserve(log) {
 
 
     try {
+
+      // ==================================================
+      // ENVIAR LOG A OPENOBSERVE
+      // ==================================================
 
       const response =
         await fetch(
@@ -87,6 +113,10 @@ async function enviarLogOpenObserve(log) {
         );
 
 
+      // ==================================================
+      // VALIDAR RESPUESTA
+      // ==================================================
+
       if (!response.ok) {
 
         console.error(
@@ -106,7 +136,10 @@ async function enviarLogOpenObserve(log) {
 
   } catch (error) {
 
-    // OpenObserve nunca debe tumbar la API
+    // ==================================================
+    // OPENOBSERVE NUNCA DEBE TUMBAR NUESTRA API
+    // ==================================================
+
     console.error(
       'OPENOBSERVE_CONNECTION_ERROR',
       error.message
