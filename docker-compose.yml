@@ -1,6 +1,7 @@
 services:
 
   devops-tasks:
+
     build:
       context: .
       dockerfile: Dockerfile
@@ -13,6 +14,24 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+
+      # ================================================
+      # OPENTELEMETRY - TRAZAS
+      # ================================================
+      - OTEL_SERVICE_NAME=devops-tasks-api
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_EXPORTER=otlp
+
+      # No generaremos métricas/logs desde Node por OTEL.
+      # Ya tenemos métricas de infraestructura y logs aparte.
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production
+
+      # Carga la autoinstrumentación antes de server.js
+      - NODE_OPTIONS=--require=@opentelemetry/auto-instrumentations-node/register
 
     volumes:
       - tasks-data:/app/backend/db
