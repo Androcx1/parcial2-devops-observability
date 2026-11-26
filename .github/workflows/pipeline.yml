@@ -1,4 +1,4 @@
-name: CI/CD - Tests, Docker y EC2
+name: CI/CD - Pruebas, Docker y EC2
 
 on:
   push:
@@ -17,7 +17,7 @@ permissions:
 jobs:
 
   # =====================================================
-  # PRUEBAS BACKEND - JEST / SUPERTEST
+  # PRUEBAS BACKEND - JEST
   # =====================================================
 
   backend-tests:
@@ -86,6 +86,101 @@ jobs:
 
 
   # =====================================================
+  # REGISTRAR RESULTADO DE PRUEBAS EN OPENOBSERVE
+  # SE EJECUTA AUNQUE ALGUNA PRUEBA FALLE
+  # =====================================================
+
+  report-tests:
+
+    name: OpenObserve - Resultado de pruebas
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - backend-tests
+      - frontend-tests
+
+    if: ${{ always() }}
+
+    steps:
+
+      - name: Determinar resultado
+        id: resultado
+        run: |
+          if [ "${{ needs.backend-tests.result }}" = "success" ] && \
+             [ "${{ needs.frontend-tests.result }}" = "success" ]; then
+
+            echo "estado=success" >> "$GITHUB_OUTPUT"
+
+          else
+
+            echo "estado=failure" >> "$GITHUB_OUTPUT"
+
+          fi
+
+
+      - name: Registrar pruebas en OpenObserve
+        env:
+          OPENOBSERVE_URL: ${{ secrets.OPENOBSERVE_URL }}
+          OPENOBSERVE_USER: ${{ secrets.OPENOBSERVE_USER }}
+          OPENOBSERVE_PASSWORD: ${{ secrets.OPENOBSERVE_PASSWORD }}
+
+          RESULTADO: ${{ steps.resultado.outputs.estado }}
+          BACKEND_RESULT: ${{ needs.backend-tests.result }}
+          FRONTEND_RESULT: ${{ needs.frontend-tests.result }}
+
+          COMMIT_SHA: ${{ github.sha }}
+          RAMA: ${{ github.ref_name }}
+          USUARIO: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+
+        run: |
+
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          PAYLOAD=$(jq -n \
+            --arg evento "PIPELINE_TESTS" \
+            --arg resultado "$RESULTADO" \
+            --arg backend "$BACKEND_RESULT" \
+            --arg frontend "$FRONTEND_RESULT" \
+            --arg commit "$COMMIT_SHA" \
+            --arg rama "$RAMA" \
+            --arg usuario "$USUARIO" \
+            --arg run_id "$RUN_ID" \
+            --arg run_number "$RUN_NUMBER" \
+            --arg timestamp "$TIMESTAMP" \
+            '[
+              {
+                evento: $evento,
+                resultado: $resultado,
+                backend: $backend,
+                frontend: $frontend,
+                commit: $commit,
+                rama: $rama,
+                usuario: $usuario,
+                run_id: $run_id,
+                run_number: $run_number,
+                timestamp: $timestamp
+              }
+            ]'
+          )
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -u "$OPENOBSERVE_USER:$OPENOBSERVE_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            "$OPENOBSERVE_URL/api/default/cicd/_json" \
+            -d "$PAYLOAD"
+
+          echo ""
+          echo "Resultado de pruebas registrado en OpenObserve"
+
+
+  # =====================================================
   # CONSTRUIR IMAGEN DOCKER
   # SOLO SI JEST Y PLAYWRIGHT PASARON
   # =====================================================
@@ -114,8 +209,7 @@ jobs:
 
   # =====================================================
   # DESPLIEGUE AUTOMATICO A AWS EC2
-  # SOLO DESPUES DE PRUEBAS + DOCKER CORRECTOS
-  # SOLO EN PUSH A MAIN
+  # SOLO SI LAS PRUEBAS Y DOCKER FUERON CORRECTOS
   # =====================================================
 
   deploy:
@@ -137,7 +231,9 @@ jobs:
         env:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
+
         run: |
+
           mkdir -p ~/.ssh
 
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
@@ -151,7 +247,9 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
+
         run: |
+
           ssh \
             -i ~/.ssh/ec2_key \
             "$EC2_USER@$EC2_HOST" << 'EOF'
@@ -164,16 +262,10 @@ jobs:
 
             cd ~/parcial2-devops-observability
 
-            echo "Actualizando repositorio..."
             git pull origin main
 
-            echo "Reconstruyendo aplicacion..."
             docker compose up -d --build devops-tasks
 
-            echo "Contenedores activos:"
-            docker ps
-
-            echo "Comprobando API..."
             sleep 5
 
             curl --fail http://localhost:3000/api/health
@@ -184,3 +276,65 @@ jobs:
             echo "======================================"
 
           EOF
+
+
+      # =================================================
+      # REGISTRAR RESULTADO DEL DEPLOY EN OPENOBSERVE
+      # =================================================
+
+      - name: Registrar despliegue en OpenObserve
+        if: ${{ always() }}
+
+        env:
+          OPENOBSERVE_URL: ${{ secrets.OPENOBSERVE_URL }}
+          OPENOBSERVE_USER: ${{ secrets.OPENOBSERVE_USER }}
+          OPENOBSERVE_PASSWORD: ${{ secrets.OPENOBSERVE_PASSWORD }}
+
+          DEPLOY_RESULT: ${{ job.status }}
+
+          COMMIT_SHA: ${{ github.sha }}
+          RAMA: ${{ github.ref_name }}
+          USUARIO: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+
+        run: |
+
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          PAYLOAD=$(jq -n \
+            --arg evento "DEPLOY_EC2" \
+            --arg resultado "$DEPLOY_RESULT" \
+            --arg commit "$COMMIT_SHA" \
+            --arg rama "$RAMA" \
+            --arg usuario "$USUARIO" \
+            --arg run_id "$RUN_ID" \
+            --arg run_number "$RUN_NUMBER" \
+            --arg timestamp "$TIMESTAMP" \
+            '[
+              {
+                evento: $evento,
+                resultado: $resultado,
+                destino: "AWS EC2",
+                commit: $commit,
+                rama: $rama,
+                usuario: $usuario,
+                run_id: $run_id,
+                run_number: $run_number,
+                timestamp: $timestamp
+              }
+            ]'
+          )
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            -u "$OPENOBSERVE_USER:$OPENOBSERVE_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            "$OPENOBSERVE_URL/api/default/cicd/_json" \
+            -d "$PAYLOAD"
+
+          echo ""
+          echo "Resultado del despliegue registrado en OpenObserve"
